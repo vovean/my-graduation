@@ -1,0 +1,1 @@
+insert into management(key, value) values ('secret_key', ?) returning value;

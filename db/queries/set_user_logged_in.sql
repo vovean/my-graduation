@@ -1,0 +1,1 @@
+update users set is_logged_in=? where tid=?;

@@ -1,0 +1,1 @@
+select is_logged_in from users where tid=?;
