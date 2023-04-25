@@ -17,7 +17,7 @@ class ManagementDB:
     def get_string(self, key: str) -> tuple[str, bool]:
         self.logger.debug('management get string called')
         if key in storage:
-            return storage[key]
+            return storage[key], True
 
         with open(pathlib.Path(__file__).parent / 'queries/get_management_by_key.sql') as fin:
             query = fin.read()

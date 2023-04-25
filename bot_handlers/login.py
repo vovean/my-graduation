@@ -65,10 +65,16 @@ class LoginHandler:
             )
             return
 
-        await context.bot.send_message(
-            chat_id=update.effective_user.id,
-            text='Авторизация успешна',
-        )
+        for i in range(3):
+            try:
+                await context.bot.send_message(
+                    chat_id=update.effective_user.id,
+                    text='Авторизация успешна',
+                )
+                break
+            except telegram.error.TelegramError as exc:
+                self.logger.error(f'error sending success message, trying again, {exc=}, cur_attempt={i+1}')
+                continue
 
     def get_handler(self) -> telegram.ext.BaseHandler:
         return telegram.ext.CommandHandler('login', self.login)
