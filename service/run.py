@@ -1,17 +1,30 @@
+import json
 import logging
 import os
 import pathlib
+import typing
 import uuid
 from datetime import datetime
 
 import telegram
-import typing
 
 import db as dbm
 
 
 def extract_command_from_msg(msg: str) -> str:
     return msg.split(' ', maxsplit=1)[-1]
+
+
+def make_inline_buttons(msg: str) -> telegram.InlineKeyboardMarkup:
+    buttons = [[telegram.InlineKeyboardButton(
+        'Повторить',
+        callback_data=json.dumps({
+            'action': 'simple_cmd',
+            'message': msg,
+        })
+    )]]
+
+    return telegram.InlineKeyboardMarkup(buttons)
 
 
 class RunService:
@@ -22,7 +35,10 @@ class RunService:
         self.simple_cmd_repo = dbm.SimpleCommandDB(self.db)
         self.outputs_path = data_path / 'output'
 
-    async def run(self, bot: telegram.Bot, user: telegram.User, message: telegram.Message) -> typing.Optional[Exception]:
+    async def run(self,
+                  bot: telegram.Bot,
+                  user: telegram.User,
+                  message: telegram.Message) -> typing.Optional[Exception]:
         self.logger.debug('run called')
 
         tid = str(user.id)
@@ -43,16 +59,18 @@ class RunService:
         command = extract_command_from_msg(message.text)
         output_file = (self.outputs_path / f'{int(datetime.now().timestamp())}.txt').absolute()
         self.logger.debug(f'running {command=}')
-        os.system(f'{command} > {output_file.absolute()}')
+        os.system(f'{command} > {output_file}')
 
         with open(output_file) as fin:
             result = fin.read()
 
+        reply_markup = make_inline_buttons(message.text)
         if result.count('\n') <= 20:
             msg = await bot.send_message(
                 chat_id=user.id,
                 text=f'```\n{result}\n```',
                 parse_mode='Markdown',
+                reply_markup=reply_markup,
             )
         else:
             msg = await bot.send_document(
@@ -60,6 +78,7 @@ class RunService:
                 caption='Вывод команды очень большой. Для удобства прислал файлом',
                 document=output_file,
                 filename='command_output.txt',
+                reply_markup=reply_markup,
             )
 
         sm = dbm.SimpleCommandModel(
