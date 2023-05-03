@@ -38,8 +38,6 @@ class RunHandler:
 
         data = json.loads(cb_query.data)
 
-        context.bot.send_message()
-
         exc = await self.service.run(context.bot, update.effective_user, telegram.Message(
             message_id=0,
             text=data['message'],

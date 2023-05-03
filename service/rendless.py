@@ -1,6 +1,8 @@
 import hashlib
+import json
 import logging
 import pathlib
+import typing
 import uuid
 from dataclasses import dataclass
 
@@ -14,11 +16,24 @@ def extract_command_from_msg(msg: str) -> str:
     return msg.split(' ', maxsplit=1)[-1]
 
 
+def make_inline_buttons(msg: str) -> telegram.InlineKeyboardMarkup:
+    buttons = [[telegram.InlineKeyboardButton(
+        'Повторить',
+        callback_data=json.dumps({
+            'action': 'rendless_cmd',
+            'message': msg,
+        })
+    )]]
+
+    return telegram.InlineKeyboardMarkup(buttons)
+
+
 @dataclass
 class JobArgs:
     rm: dbm.RendlessModel
     user_tid: int | str
     mid: int
+    inline_reply_markup: telegram.InlineKeyboardMarkup
     prev_msg_hash: str = ''
 
 
@@ -57,7 +72,7 @@ class RendlessService:
                        bot: telegram.Bot,
                        user: telegram.User,
                        message: telegram.Message,
-                       job_queue: telegram.ext.JobQueue) -> Exception:
+                       job_queue: telegram.ext.JobQueue) -> typing.Optional[Exception]:
         self.logger.debug('rendless called')
 
         tid = str(user.id)
@@ -105,10 +120,12 @@ class RendlessService:
         screen.session_hardcopy(rm.screen_session, rm.hardcopy)
         with open(rm.hardcopy) as fin:
             data = fin.read()
+        reply_markup = make_inline_buttons(message.text)
         message = await bot.send_message(
             chat_id=tid,
             text=f'```\n{data}\n```',
             parse_mode='Markdown',
+            reply_markup=reply_markup,
         )
 
         job_queue.run_repeating(
@@ -121,6 +138,7 @@ class RendlessService:
                 rm=rm,
                 user_tid=tid,
                 mid=message.id,
+                inline_reply_markup=reply_markup,
             )
         )
 
@@ -141,6 +159,7 @@ class RendlessService:
                 message_id=jobargs.mid,
                 text=f'```\n{data}\n```',
                 parse_mode='Markdown',
+                reply_markup=jobargs.inline_reply_markup,
             )
             jobargs.prev_msg_hash = hash
         except telegram.error.BadRequest as exc:

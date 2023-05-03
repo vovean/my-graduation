@@ -1,3 +1,4 @@
+import json
 import logging
 import pathlib
 
@@ -10,6 +11,11 @@ import service
 from bot_handlers import common
 
 
+def check_cb_data(data: str) -> bool:
+    d = json.loads(data)
+    return d.get('action', '') == 'rendless_cmd'
+
+
 class RendlessHandler:
     def __init__(self, db: dbm.Database, data_path: pathlib.Path):
         self.logger = logging.getLogger('rendless handler')
@@ -18,11 +24,34 @@ class RendlessHandler:
     async def rendless(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         self.logger.debug('rendless called')
 
-        exc = await self.service.rendless(context.bot, update.effective_user, update.effective_message, context.job_queue)
+        exc = await self.service.rendless(context.bot, update.effective_user, update.effective_message,
+                                          context.job_queue)
         if exc is not None:
             self.logger.warning(f'failed to execute run, {exc=}')
             await common.process_error(update, context)
             return
 
-    def get_handler(self) -> telegram.ext.BaseHandler:
-        return telegram.ext.CommandHandler('rendless', self.rendless)
+    async def repeat(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        self.logger.debug('repeat run called')
+
+        cb_query = update.callback_query
+        await cb_query.answer()
+
+        data = json.loads(cb_query.data)
+
+        exc = await self.service.rendless(context.bot, update.effective_user, telegram.Message(
+            message_id=0,
+            text=data['message'],
+            date=...,
+            chat=...,
+        ), context.job_queue)
+        if exc is not None:
+            self.logger.warning(f'failed to execute repeat run, {exc=}')
+            await common.process_error(update, context)
+            return
+
+    def get_handler(self) -> list[telegram.ext.BaseHandler]:
+        return [
+            telegram.ext.CommandHandler('rendless', self.rendless),
+            telegram.ext.CallbackQueryHandler(self.repeat, check_cb_data),
+        ]

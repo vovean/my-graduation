@@ -18,7 +18,7 @@ def create_handlers(db: dbm.Database, data_path: pathlib.Path, root_path: pathli
         LoginHandler(db).get_handler(),
         LogoutHandler(db).get_handler(),
         *RunHandler(db, data_path).get_handlers(),
-        RendlessHandler(db, data_path).get_handler(),
+        *RendlessHandler(db, data_path).get_handler(),
         FileUploadHandler(db, root_path).get_handler(),
         FileDownloadHandler(db).get_handler(),
     ]
