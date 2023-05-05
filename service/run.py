@@ -86,7 +86,6 @@ class RunService:
             command=command,
             output_file=str(output_file),
             text_response_mid=str(msg.id),
-            image_response_mid='',
         )
         exc = self.simple_cmd_repo.save_command(sm)
         if exc is not None:

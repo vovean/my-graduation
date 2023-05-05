@@ -16,8 +16,7 @@ create table simple_command_execution
     id                 text primary key,
     command            text,
     output_file        text,
-    text_response_mid  text,
-    image_response_mid text null
+    text_response_mid  text
 );
 
 create table rendless_execution

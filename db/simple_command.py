@@ -13,7 +13,6 @@ class SimpleCommandModel:
     command: str
     output_file: str
     text_response_mid: str
-    image_response_mid: str
 
 
 @dataclass
@@ -30,7 +29,7 @@ class SimpleCommandDB:
             with self.db.connection:
                 cur = self.db.connection.execute(
                     query,
-                    [sm.id, sm.command, sm.output_file, sm.text_response_mid, sm.image_response_mid],
+                    [sm.id, sm.command, sm.output_file, sm.text_response_mid],
                 )
                 cur.close()
         except sqlite3.Error as error:
