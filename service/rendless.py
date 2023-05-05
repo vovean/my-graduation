@@ -149,6 +149,18 @@ class RendlessService:
                 inline_reply_markup=reply_markup,
             )
         )
+        job_queue.run_once(
+            self.after_job,
+            when=12,
+            user_id=user.id,
+            name=session,
+            data=JobArgs(
+                rm=rm,
+                user_tid=tid,
+                mid=message.id,
+                inline_reply_markup=reply_markup,
+            ),
+        )
 
     async def job(self, context: telegram.ext.CallbackContext):
         jobargs: JobArgs = context.job.data
@@ -166,6 +178,24 @@ class RendlessService:
                 chat_id=jobargs.user_tid,
                 message_id=jobargs.mid,
                 text=f'```\n{data}\n```',
+                parse_mode='Markdown',
+                reply_markup=jobargs.inline_reply_markup,
+            )
+            jobargs.prev_msg_hash = hash
+        except telegram.error.BadRequest as exc:
+            self.logger.warning(f'error occurred while editing message {jobargs.mid=}, {exc=}')
+
+    async def after_job(self, context: telegram.ext.CallbackContext):
+        jobargs: JobArgs = context.job.data
+        screen.session_hardcopy(jobargs.rm.screen_session, jobargs.rm.hardcopy)
+        with open(jobargs.rm.hardcopy) as fin:
+            data = fin.read()
+
+        try:
+            await context.bot.edit_message_text(
+                chat_id=jobargs.user_tid,
+                message_id=jobargs.mid,
+                text=f'⛔️*ЗАВЕРШЕНО*⛔️\n\n```\n{data}\n```',
                 parse_mode='Markdown',
                 reply_markup=jobargs.inline_reply_markup,
             )
