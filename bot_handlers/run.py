@@ -9,11 +9,12 @@ from telegram.ext import ContextTypes
 import db as dbm
 import service
 from bot_handlers import common
+from service.inline_btn_data_keys import ACTION, MESSAGE_TEXT, REPLY_TO
 
 
 def check_cb_data(data: str) -> bool:
     d = json.loads(data)
-    return d.get('action', '') == 'simple_cmd'
+    return d.get(ACTION, '') == 'simple_cmd'
 
 
 class RunHandler:
@@ -39,8 +40,8 @@ class RunHandler:
         data = json.loads(cb_query.data)
 
         exc = await self.service.run(context.bot, update.effective_user, telegram.Message(
-            message_id=0,
-            text=data['message'],
+            message_id=data.get(REPLY_TO, 0),
+            text=data[MESSAGE_TEXT],
             date=...,
             chat=...,
         ))

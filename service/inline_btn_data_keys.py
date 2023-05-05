@@ -1,0 +1,3 @@
+ACTION = 'a'
+MESSAGE_TEXT = 'm'
+REPLY_TO = 'r'

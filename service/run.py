@@ -9,18 +9,20 @@ from datetime import datetime
 import telegram
 
 import db as dbm
+from service.inline_btn_data_keys import ACTION, MESSAGE_TEXT, REPLY_TO
 
 
 def extract_command_from_msg(msg: str) -> str:
     return msg.split(' ', maxsplit=1)[-1]
 
 
-def make_inline_buttons(msg: str) -> telegram.InlineKeyboardMarkup:
+def make_inline_buttons(msg_text: str, msg_tid: int) -> telegram.InlineKeyboardMarkup:
     buttons = [[telegram.InlineKeyboardButton(
         'Повторить',
         callback_data=json.dumps({
-            'action': 'simple_cmd',
-            'message': msg,
+            ACTION: 'simple_cmd',
+            MESSAGE_TEXT: msg_text,
+            REPLY_TO: msg_tid,
         })
     )]]
 
@@ -64,13 +66,18 @@ class RunService:
         with open(output_file) as fin:
             result = fin.read()
 
-        reply_markup = make_inline_buttons(message.text)
+        reply_markup = make_inline_buttons(message.text, message.id)
+        kw = dict()
+        if message.id != 0:
+            kw['reply_to_message_id'] = message.id
+
         if result.count('\n') <= 20:
             msg = await bot.send_message(
                 chat_id=user.id,
                 text=f'```\n{result}\n```',
                 parse_mode='Markdown',
                 reply_markup=reply_markup,
+                **kw,
             )
         else:
             msg = await bot.send_document(
@@ -79,6 +86,7 @@ class RunService:
                 document=output_file,
                 filename='command_output.txt',
                 reply_markup=reply_markup,
+                **kw,
             )
 
         sm = dbm.SimpleCommandModel(
