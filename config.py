@@ -17,3 +17,7 @@ class Config:
         NOTSET
     '''
     log_level: str
+
+    monitoring_host: str
+    monitoring_port: int
+    monitoring_key: str

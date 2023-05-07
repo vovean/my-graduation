@@ -7,6 +7,7 @@ from telegram.ext import ApplicationBuilder, Application
 import bot_handlers
 import config
 import db as dbm  # dbm = db module
+import monitoring
 
 DATA_PATH = pathlib.Path(__file__).parent / 'data'
 
@@ -15,7 +16,10 @@ def load_config() -> config.Config:
     raw_values = dotenv.dotenv_values()
     return config.Config(
         bot_token=raw_values.get('BOT_TOKEN', 'no token'),
-        log_level=raw_values.get('LOG_LEVEL', 'info'),
+        log_level=raw_values.get('LOG_LEVEL', 'INFO').upper(),
+        monitoring_host=raw_values.get('MONITORING_HOST', None),
+        monitoring_port=int(raw_values.get('MONITORING_PORT', None)),
+        monitoring_key=raw_values.get('MONITORING_KEY', None),
     )
 
 
@@ -43,10 +47,19 @@ def run_bot_app(app: Application):
     app.run_polling()
 
 
+def start_monitoring(cfg: config.Config):
+    monitoring.run_monitoring(monitoring.MonitoringParams(
+        host=cfg.monitoring_host,
+        port=cfg.monitoring_port,
+        key=cfg.monitoring_key,
+    ))
+
+
 def main():
     cfg = load_config()
 
     setup_logging(cfg)
+    start_monitoring(cfg)
 
     db = setup_db()
 
