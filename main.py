@@ -1,13 +1,13 @@
+import asyncio
 import logging
 import pathlib
-
-import dotenv
-from telegram.ext import ApplicationBuilder, Application
 
 import bot_handlers
 import config
 import db as dbm  # dbm = db module
+import dotenv
 import monitoring
+from telegram.ext import ApplicationBuilder, Application
 
 DATA_PATH = pathlib.Path(__file__).parent / 'data'
 
@@ -43,28 +43,28 @@ def setup_db() -> dbm.Database:
     return dbm.Database(DATA_PATH)
 
 
-def run_bot_app(app: Application):
+def run_bot_app(app: Application, cfg: config.Config):
+    app.job_queue.run_repeating(
+        monitoring.do_mon_request,
+        interval=1,
+        data=monitoring.MonitoringParams(
+            host=cfg.monitoring_host,
+            port=cfg.monitoring_port,
+            key=cfg.monitoring_key,
+        )
+    )
     app.run_polling()
-
-
-def start_monitoring(cfg: config.Config):
-    monitoring.run_monitoring(monitoring.MonitoringParams(
-        host=cfg.monitoring_host,
-        port=cfg.monitoring_port,
-        key=cfg.monitoring_key,
-    ))
 
 
 def main():
     cfg = load_config()
 
     setup_logging(cfg)
-    start_monitoring(cfg)
 
     db = setup_db()
 
     bot_app = create_bot_application(cfg, db)
-    run_bot_app(bot_app)
+    run_bot_app(bot_app, cfg)
 
 
 if __name__ == '__main__':
