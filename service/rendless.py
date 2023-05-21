@@ -1,6 +1,8 @@
+import binascii
 import hashlib
 import json
 import logging
+import os
 import pathlib
 import typing
 import uuid
@@ -8,6 +10,7 @@ from dataclasses import dataclass
 
 import telegram.ext
 
+import config
 import db as dbm
 import screen
 from service.inline_btn_data_keys import ACTION, MESSAGE_TEXT, REPLY_TO
@@ -17,14 +20,21 @@ def extract_command_from_msg(msg: str) -> str:
     return msg.split(' ', maxsplit=1)[-1]
 
 
-def make_inline_buttons(msg_text: str, msg_tid: int) -> telegram.InlineKeyboardMarkup:
+def make_inline_buttons(msg_text: str, msg_tid: int, msgs_path: pathlib.Path) -> telegram.InlineKeyboardMarkup:
+    data = {
+        ACTION: 'rendless_cmd',
+        MESSAGE_TEXT: msg_text,
+        REPLY_TO: msg_tid,
+    }
+
+    msg_filename = binascii.b2a_hex(os.urandom(15)).decode()
+    msg_file = msgs_path / msg_filename
+    with open(msg_file, 'w') as fout:
+        json.dump(data, fout)
+
     buttons = [[telegram.InlineKeyboardButton(
         'Повторить',
-        callback_data=json.dumps({
-            ACTION: 'rendless_cmd',
-            MESSAGE_TEXT: msg_text,
-            REPLY_TO: msg_tid,
-        })
+        callback_data=msg_filename
     )]]
 
     return telegram.InlineKeyboardMarkup(buttons)
@@ -40,12 +50,14 @@ class JobArgs:
 
 
 class RendlessService:
-    def __init__(self, db: dbm.Database, data_path: pathlib.Path):
+    def __init__(self, db: dbm.Database, data_path: pathlib.Path, cfg: config.Config):
         self.db = db
         self.logger = logging.getLogger('rendless service')
         self.user_repo = dbm.UserDB(self.db)
         self.rendless_repo = dbm.RendlessDB(self.db)
         self.hardcopies_path = data_path / 'hardcopies'
+        self.msgs_path = data_path / 'msgs'
+        self.job_time_sec = cfg.rendless_time_sec
 
         self.clear_existing_active_rendlesses()
 
@@ -122,12 +134,14 @@ class RendlessService:
         screen.session_hardcopy(rm.screen_session, rm.hardcopy)
         with open(rm.hardcopy) as fin:
             data = fin.read()
-        reply_markup = make_inline_buttons(message.text, message.id)
+        reply_markup = make_inline_buttons(message.text, message.id, self.msgs_path)
 
         kw = dict()
         if message.id != 0:
             kw['reply_to_message_id'] = message.id
 
+        if data == '':
+            data = 'Произошла ошибка, попробуйте еще раз'
         message = await bot.send_message(
             chat_id=tid,
             text=f'```\n{data}\n```',
@@ -139,7 +153,7 @@ class RendlessService:
         job_queue.run_repeating(
             self.job,
             interval=1,
-            last=10,
+            last=self.job_time_sec,
             user_id=user.id,
             name=session,
             data=JobArgs(
@@ -151,7 +165,7 @@ class RendlessService:
         )
         job_queue.run_once(
             self.after_job,
-            when=12,
+            when=self.job_time_sec + 2,
             user_id=user.id,
             name=session,
             data=JobArgs(

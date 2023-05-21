@@ -21,3 +21,5 @@ class Config:
     monitoring_host: str
     monitoring_port: int
     monitoring_key: str
+
+    rendless_time_sec: int

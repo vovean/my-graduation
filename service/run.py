@@ -1,3 +1,4 @@
+import binascii
 import json
 import logging
 import os
@@ -16,14 +17,21 @@ def extract_command_from_msg(msg: str) -> str:
     return msg.split(' ', maxsplit=1)[-1]
 
 
-def make_inline_buttons(msg_text: str, msg_tid: int) -> telegram.InlineKeyboardMarkup:
+def make_inline_buttons(msg_text: str, msg_tid: int, msgs_path: pathlib.Path) -> telegram.InlineKeyboardMarkup:
+    data = {
+        ACTION: 'simple_cmd',
+        MESSAGE_TEXT: msg_text,
+        REPLY_TO: msg_tid,
+    }
+
+    msg_filename = binascii.b2a_hex(os.urandom(15)).decode()
+    msg_file = msgs_path / msg_filename
+    with open(msg_file, 'w') as fout:
+        json.dump(data, fout)
+
     buttons = [[telegram.InlineKeyboardButton(
         'Повторить',
-        callback_data=json.dumps({
-            ACTION: 'simple_cmd',
-            MESSAGE_TEXT: msg_text,
-            REPLY_TO: msg_tid,
-        })
+        callback_data=msg_filename
     )]]
 
     return telegram.InlineKeyboardMarkup(buttons)
@@ -36,6 +44,7 @@ class RunService:
         self.user_repo = dbm.UserDB(self.db)
         self.simple_cmd_repo = dbm.SimpleCommandDB(self.db)
         self.outputs_path = data_path / 'output'
+        self.msgs_path = data_path / 'msgs'
 
     async def run(self,
                   bot: telegram.Bot,
@@ -66,7 +75,7 @@ class RunService:
         with open(output_file) as fin:
             result = fin.read()
 
-        reply_markup = make_inline_buttons(message.text, message.id)
+        reply_markup = make_inline_buttons(message.text, message.id, self.msgs_path)
         kw = dict()
         if message.id != 0:
             kw['reply_to_message_id'] = message.id

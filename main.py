@@ -1,13 +1,13 @@
-import asyncio
 import logging
 import pathlib
+
+import dotenv
+from telegram.ext import ApplicationBuilder, Application
 
 import bot_handlers
 import config
 import db as dbm  # dbm = db module
-import dotenv
 import monitoring
-from telegram.ext import ApplicationBuilder, Application
 
 DATA_PATH = pathlib.Path(__file__).parent / 'data'
 
@@ -20,6 +20,7 @@ def load_config() -> config.Config:
         monitoring_host=raw_values.get('MONITORING_HOST', None),
         monitoring_port=int(raw_values.get('MONITORING_PORT', None)),
         monitoring_key=raw_values.get('MONITORING_KEY', None),
+        rendless_time_sec=int(raw_values.get('RENDLESS_TIME_SEC', '10')),
     )
 
 
@@ -33,7 +34,7 @@ def setup_logging(cfg: config.Config):
 def create_bot_application(cfg: config.Config, db: dbm.Database):
     application = ApplicationBuilder().token(cfg.bot_token).build()
 
-    handlers = bot_handlers.create_handlers(db, DATA_PATH, pathlib.Path(__file__).parent)
+    handlers = bot_handlers.create_handlers(db, DATA_PATH, pathlib.Path(__file__).parent, cfg)
     application.add_handlers(handlers)
 
     return application

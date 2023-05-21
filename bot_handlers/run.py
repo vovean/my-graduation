@@ -12,15 +12,17 @@ from bot_handlers import common
 from service.inline_btn_data_keys import ACTION, MESSAGE_TEXT, REPLY_TO
 
 
-def check_cb_data(data: str) -> bool:
-    d = json.loads(data)
-    return d.get(ACTION, '') == 'simple_cmd'
-
-
 class RunHandler:
     def __init__(self, db: dbm.Database, data_path: pathlib.Path):
         self.logger = logging.getLogger('run service')
         self.service = service.RunService(db, data_path)
+        self.msgs_path = data_path / 'msgs'
+
+    def check_cb_data(self, data: str) -> bool:
+        with open(self.msgs_path / data, 'r') as fin:
+            d = json.load(fin)
+
+        return d.get(ACTION, '') == 'simple_cmd'
 
     async def run(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         self.logger.debug('run called')
@@ -37,7 +39,8 @@ class RunHandler:
         cb_query = update.callback_query
         await cb_query.answer()
 
-        data = json.loads(cb_query.data)
+        with open(self.msgs_path / cb_query.data) as fin:
+            data = json.load(fin)
 
         exc = await self.service.run(context.bot, update.effective_user, telegram.Message(
             message_id=data.get(REPLY_TO, 0),
@@ -53,5 +56,5 @@ class RunHandler:
     def get_handlers(self) -> list[telegram.ext.BaseHandler]:
         return [
             telegram.ext.CommandHandler('run', self.run),
-            telegram.ext.CallbackQueryHandler(self.repeat, check_cb_data),
+            telegram.ext.CallbackQueryHandler(self.repeat, self.check_cb_data),
         ]

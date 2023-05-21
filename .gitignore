@@ -282,6 +282,7 @@ data/*
 !data/.gitkeep
 !data/hardcopies
 !data/output
+!data/msgs
 
 data/hardcopies/*
 !data/hardcopies/.gitkeep

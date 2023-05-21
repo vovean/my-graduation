@@ -14,6 +14,9 @@ class MonitoringParams:
 
 async def do_mon_request(context: telegram.ext.CallbackContext):
     params: MonitoringParams = context.job.data
+    if not params.host or not params.port or not params.key:
+        return
+
     try:
         resp = httpx.post(f'http://{params.host}:{params.port}/imalive', json={'token': params.key})
         if not 200 <= resp.status_code < 300:
